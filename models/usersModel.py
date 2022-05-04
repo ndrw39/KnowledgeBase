@@ -33,4 +33,21 @@ class usersModel(declarativeBase):
         add = usersModel(**data)
         bd.add(add)
         bd.commit()
-        return data
+        userData = bd.query(usersModel).filter_by(chat_id=tData.chat.id).all()
+        if userData:
+            return userData[0]
+
+    def updateCenter(bd, userId, centerId):
+        data = {
+           "center_id": centerId,
+           "updated": datetime.now()
+        }
+        bd.query(usersModel).filter_by(chat_id=userId).update(data)
+        bd.commit()
+
+    def isAdmin(bd, chatID):
+        userData = bd.query(usersModel).filter_by(chat_id=chatID).first()
+        if not userData:
+            return false
+
+        return userData.type == 'admin'

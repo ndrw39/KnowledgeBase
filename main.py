@@ -3,6 +3,7 @@ import sys
 import json
 sys.path.append('models')
 from usersModel import *
+from sectionsModel import *
 from centersModel import *
 from telebot import types
 from config import DATABASE_URL, API_TOKEN
@@ -34,7 +35,7 @@ def startCommand(message):
             i = 0
             for center in centers:
                 i += 1
-                callback = '{"action" : "getCenter", "id" : ' + str(center.id) + '}'
+                callback = '{"action" : "selectCenter", "id" : ' + str(center.id) + '}'
                 button = types.InlineKeyboardButton(text=str(i) + ") " + center.name, callback_data=callback)
                 keyboard.add(button)
 
@@ -57,6 +58,7 @@ def startCommand(message):
 
 @bot.callback_query_handler(func=lambda callback: True)
 def allCallbacks(callback):
+    print(callback.data)
     callbackData = json.loads(callback.data)
     if not 'action' in callbackData:
         bot.send_message(message.chat.id, 'Sorry, undefined error')
@@ -75,14 +77,74 @@ def allCallbacks(callback):
         return
 
     if callbackData['action'] == 'deleteCenter':
+        userData = bd.query(usersModel).filter_by(center_id=callbackData['id']).all()
+        if userData:
+            bot.delete_message(callback.message.chat.id, callback.message.message_id)
+            bot.send_message(callback.message.chat.id, 'Нельзя удалить, так как уже привязано у юзера')
+            return
+
         centersModel.delete(bd, callbackData['id'])
         bot.delete_message(callback.message.chat.id, callback.message.message_id)
         startCommand(callback.message)
         return
 
+    if callbackData['action'] == 'selectCenter':
+        usersModel.updateCenter(bd, callback.message.chat.id, callbackData['id'])
+        bot.delete_message(callback.message.chat.id, callback.message.message_id)
+        sendSections(callback.message.chat.id)
+        return
+
+    if callbackData['action'] == 'addSection':
+        bot.delete_message(callback.message.chat.id, callback.message.message_id)
+        bot.send_message(callback.message.chat.id, 'Введите название раздела:')
+        bot.register_next_step_handler(callback.message,addSectionCallback, callbackData['center_id'], callbackData['parent_id'])
+        return
+
+def sendSections(chatID, parentID = None):
+    userData = bd.query(usersModel).filter_by(chat_id=chatID).one()
+    centerID = userData.center_id
+    sections = sectionsModel.getSections(bd,centerID,parentID)
+    keyboard = types.InlineKeyboardMarkup()
+
+
+    text = "Доступные разделы:"
+    if not sections:
+        text = "Пока нет ни одного раздела/темы"
+    else:
+        i = 0
+        for section in sections:
+            i += 1
+            callback = '{"action" : "selectSection", "id" : ' + str(section.id) + '}'
+            button = types.InlineKeyboardButton(text=str(i) + ") " + section.name, callback_data=callback)
+            keyboard.add(button)
+
+            if userData.type == 'admin':
+                callback = '{"action" : "updateSection", "id" : ' + str(section.id) + '}'
+                button1 = types.InlineKeyboardButton(text='🖋 Изменить', callback_data=callback)
+                callback = '{"action" : "deleteSection", "id" : ' + str(section.id) + '}'
+                button2 = types.InlineKeyboardButton(text='❌ Удалить', callback_data=callback)
+                keyboard.add(button1, button2)
+
+    if userData.type == 'admin':
+        callback = {
+            "action" : "addSection",
+            "center_id" : centerID,
+            "parent_id" : parentID
+        }
+        button = types.InlineKeyboardButton(text="✅ Добавить раздел", callback_data=json.dumps(callback))
+        keyboard.add(button)
+        bot.send_message(chatID, text, reply_markup=keyboard)
+        return
+
+    bot.send_message(chatID, text)
+
 def addCenterCallback(message):
     centersModel.add(bd, message.text)
     startCommand(message)
+
+def addSectionCallback(message, centerID, parentID):
+    sectionsModel.add(bd, message.text, centerID, parentID)
+    sendSections(message.chat.id, parentID)
 
 def updateCenterCallback(message, updateID):
     centersModel.update(bd, updateID, message.text)
