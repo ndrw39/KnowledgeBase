@@ -10,6 +10,7 @@ class UsersModel(declarative_base()):
     firstname = Column('firstname', String)
     lastname = Column('lastname', String)
     type = Column('type', String, default='user')
+    change_type = Column('change_type', Integer, default=0)
     center_id = Column('center_id', Integer)
     created = Column('created', DateTime)
     updated = Column('updated', DateTime)

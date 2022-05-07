@@ -5,7 +5,7 @@ from datetime import datetime
 class UsersHelper:
 
     @staticmethod
-    def getUser(session, chat_id):
+    def getUser(session, chat_id: int):
         return session.query(UsersModel).filter_by(chat_id=chat_id).first()
 
     @staticmethod
@@ -29,3 +29,13 @@ class UsersHelper:
             return False
 
         return user_data.type == "admin"
+
+    @staticmethod
+    def update_center(session, user_id, center_id):
+        session.query(UsersModel).filter_by(chat_id=user_id).update({"center_id": center_id})
+        session.commit()
+
+    @staticmethod
+    def change_type(session, user_id, type):
+        session.query(UsersModel).filter_by(chat_id=user_id).update({"type": type})
+        session.commit()
