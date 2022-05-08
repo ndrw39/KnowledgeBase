@@ -5,6 +5,7 @@ from common.database import DatabaseConnection
 from common.bot import BotConnection
 from abc import ABC, abstractmethod
 from telebot import types
+from helpers.users import UsersHelper
 
 
 class BaseController(ABC):
@@ -32,10 +33,16 @@ class BaseController(ABC):
         return keyboard
 
     def add(self, message, item_id) -> None:
+        if not UsersHelper.is_admin(message.chat.id):
+            return
+
         self.bot.send_message(message.chat.id, "Выберите название:")
         self.bot.register_next_step_handler(message, self.add_callback, item_id)
 
     def update(self, message, update_id) -> None:
+        if not UsersHelper.is_admin(message.chat.id):
+            return
+
         self.bot.send_message(message.chat.id, "Выберите новое название:")
         self.bot.register_next_step_handler(message, self.update_callback, update_id)
 

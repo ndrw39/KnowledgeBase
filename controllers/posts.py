@@ -11,9 +11,6 @@ class PostsController(BaseController):
     per_page = 5
 
     def add_callback(self, message, section_id) -> None:
-        if not UsersHelper.is_admin(message.chat.id):
-            return
-
         name = message.text
         self.bot.send_message(message.chat.id, "Теперь отправьте содержание поста")
         self.bot.register_next_step_handler(message, self.add_callback_save, name, section_id)
