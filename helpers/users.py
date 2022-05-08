@@ -11,7 +11,7 @@ class UsersHelper:
         return session.query(UsersModel).filter_by(chat_id=chat_id).first()
 
     @staticmethod
-    def createUser(chat_id, firstname, lastname) -> UsersModel:
+    def createUser(chat_id: int, firstname: str, lastname: str) -> UsersModel:
         session = DatabaseConnection()
         data = {
             "chat_id": chat_id,
@@ -26,7 +26,7 @@ class UsersHelper:
         return UsersHelper.getUser(chat_id)
 
     @staticmethod
-    def is_admin(chat_id) -> bool:
+    def is_admin(chat_id: int) -> bool:
         session = DatabaseConnection()
         user_data = session.query(UsersModel).filter_by(chat_id=chat_id).first()
         if not user_data:
@@ -35,13 +35,13 @@ class UsersHelper:
         return user_data.type == "admin"
 
     @staticmethod
-    def update_center(user_id, center_id) -> None:
+    def update_center(user_id: int, center_id: int) -> None:
         session = DatabaseConnection()
         session.query(UsersModel).filter_by(chat_id=user_id).update({"center_id": center_id})
         session.commit()
 
     @staticmethod
-    def change_type(user_id, new_type) -> None:
+    def change_type(user_id: int, new_type: str) -> None:
         session = DatabaseConnection()
         session.query(UsersModel).filter_by(chat_id=user_id).update({"type": new_type})
         session.commit()

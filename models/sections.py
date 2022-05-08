@@ -9,5 +9,6 @@ class SectionsModel(declarative_base()):
     name = Column('name', String)
     center_id = Column('center_id', Integer)
     parent_id = Column('parent_id', Integer)
+    sort = Column('sort', Integer, default=0)
     created = Column('created', DateTime)
     updated = Column('updated', DateTime)

@@ -1,4 +1,5 @@
 import json
+import math
 from telebot import types
 from datetime import datetime
 from controllers.base import BaseController
@@ -12,7 +13,7 @@ from helpers.router import Router
 class SectionsController(BaseController):
     per_page = 5
 
-    def question_add(self, message, parent_id) -> None:
+    def question_add(self, message, parent_id: int) -> None:
         controller_name = self.__class__.__name__
         keyboard = types.InlineKeyboardMarkup()
 
@@ -30,7 +31,7 @@ class SectionsController(BaseController):
         self.bot.delete_message(message.chat.id, message.message_id)
         self.bot.send_message(message.chat.id, "Выберите что добавить:", reply_markup=keyboard)
 
-    def add_callback(self, message, parent_id) -> None:
+    def add_callback(self, message, parent_id: int = None) -> None:
         user = UsersHelper.getUser(message.chat.id)
         if not user.type == "admin" or not user.center_id:
             return
@@ -48,7 +49,7 @@ class SectionsController(BaseController):
         self.session.commit()
         self.select(message, parent_id)
 
-    def select(self, message, parent_id=None, page=0) -> None:
+    def select(self, message, parent_id: int = None, page: int = 0) -> None:
         allow_post = self.session.query(PostsModel).filter_by(section_id=parent_id).first()
         if allow_post:
             Router("PostsController", "view_posts", [message, parent_id])
@@ -65,19 +66,40 @@ class SectionsController(BaseController):
             .count()
 
         sections = self.session.query(SectionsModel). \
-            filter_by(parent_id=parent_id, center_id=center_id)
+            filter_by(parent_id=parent_id, center_id=center_id). \
+            order_by(SectionsModel.sort.asc()). \
+            limit(self.per_page).offset(self.per_page * int(page))
 
         is_admin = UsersHelper.is_admin(message.chat.id)
-        if count > 0:
-            sections.limit(self.per_page).offset(self.per_page * page)
 
-        keyboard = self.get_keyboard(sections.all(), is_admin)
+        # Keyboard
+        keyboard = self.get_inline_keyboard(sections.all(), is_admin)
 
+        # Pagination
+        max_pages = math.ceil(count / self.per_page) - 1
+        paginator_buttons = []
+        if int(page) > 0:
+            return_page = str(int(page) - 1)
+            callback = {"action": controller_name + ".select", "params": str(parent_id) + "|" + return_page}
+            button = types.InlineKeyboardButton(text="Назад", callback_data=json.dumps(callback))
+            paginator_buttons.append(button)
+
+        if count > self.per_page and not (max_pages == int(page)):
+            return_page = str(int(page) + 1)
+            callback = {"action": controller_name + ".select", "params": str(parent_id) + "|" + return_page}
+            button = types.InlineKeyboardButton(text="Далее", callback_data=json.dumps(callback))
+            paginator_buttons.append(button)
+
+        if len(paginator_buttons) > 0:
+            keyboard.add(*paginator_buttons)
+
+        # Add button and sort
         if is_admin:
             callback = {"action": controller_name + ".question_add", "params": parent_id}
             button = types.InlineKeyboardButton(text="Добавить", callback_data=json.dumps(callback))
             keyboard.add(button)
 
+        # Return button
         if parent_id:
             section = SectionsHelper.get_parent(parent_id)
             if section:
@@ -89,7 +111,10 @@ class SectionsController(BaseController):
         breadcrumbs = SectionsHelper.get_breadcrumbs(center_id, parent_id)
         self.bot.send_message(message.chat.id, breadcrumbs, reply_markup=keyboard)
 
-    def update_callback(self, message, update_id) -> None:
+        if count == 0 and not parent_id:
+            self.bot.send_message(message.chat.id, "Пока тут пусто", reply_markup=self.get_keyboard())
+
+    def update_callback(self, message, update_id: int) -> None:
         data = {"name": message.text, "updated": datetime.now()}
         self.session.query(SectionsModel).filter_by(id=update_id).update(data)
         self.session.commit()
@@ -97,7 +122,22 @@ class SectionsController(BaseController):
         if section:
             self.select(message, section.parent_id)
 
-    def delete(self, message, delete_id) -> None:
+    def change_sort_callback(self, message, update_id) -> None:
+        try:
+            sort = int(message.text)
+            data = {"sort": sort, "updated": datetime.now()}
+            self.session.query(SectionsModel).filter_by(id=update_id).update(data)
+            self.session.commit()
+            section = SectionsHelper.get_parent(update_id)
+            if section:
+                self.select(message, section.parent_id)
+        except ValueError:
+            self.bot.send_message(message.chat.id, "Введите цифру")
+
+    def delete(self, message, delete_id: int) -> None:
+        if not UsersHelper.is_admin(message.chat.id):
+            return
+
         posts = self.session.query(PostsModel).filter_by(section_id=delete_id).first()
         section = self.session.query(SectionsModel).filter_by(parent_id=delete_id).first()
 
@@ -107,6 +147,7 @@ class SectionsController(BaseController):
             return
 
         self.session.query(SectionsModel).filter_by(id=delete_id).delete()
+        self.session.commit()
         section = SectionsHelper.get_parent(delete_id)
 
         if section:
@@ -114,6 +155,6 @@ class SectionsController(BaseController):
 
         self.select(message)
 
-    def check_relations(self, section_id) -> bool:
+    def check_relations(self, section_id: int) -> bool:
         section = self.session.query(PostsModel).filter_by(section_id=section_id).first()
         return not section

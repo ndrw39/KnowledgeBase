@@ -1,10 +1,12 @@
 import json
+import math
 from telebot import types
 from datetime import datetime
 from controllers.base import BaseController
 from helpers.users import UsersHelper
 from helpers.sections import SectionsHelper
 from models.posts import PostsModel
+from helpers.router import Router
 
 
 class PostsController(BaseController):
@@ -12,10 +14,18 @@ class PostsController(BaseController):
 
     def add_callback(self, message, section_id) -> None:
         name = message.text
+        if not name:
+            self.bot.send_message(message.chat.id, "Только текст")
+            return
+
         self.bot.send_message(message.chat.id, "Теперь отправьте содержание поста")
         self.bot.register_next_step_handler(message, self.add_callback_save, name, section_id)
 
     def add_callback_save(self, message, post_name, section_id) -> None:
+        if not message.text:
+            self.bot.send_message(message.chat.id, "Только текст, пока что...")
+            return
+
         data = {
             "name": post_name,
             "section_id": section_id,
@@ -30,29 +40,60 @@ class PostsController(BaseController):
         self.view_posts(message, section_id)
 
     def delete(self, message, delete_id) -> None:
-        pass
+        if not UsersHelper.is_admin(message.chat.id):
+            return
+
+        post = self.session.query(PostsModel).filter_by(id=delete_id).first()
+        if not post:
+            return
+
+        self.session.query(PostsModel).filter_by(id=delete_id).delete()
+        self.session.commit()
+        Router("SectionsController", "select", [message, post.section_id])
 
     def update_callback(self, message, update_id) -> None:
         pass
 
-    def view_posts(self, message, section_id=None, page=0) -> None:
+    def change_sort_callback(self, message, update_id) -> None:
+        pass
+
+    def view_posts(self, message, section_id, page=0) -> None:
         controller_name = self.__class__.__name__
         count = self.session.query(PostsModel) \
             .filter_by(section_id=section_id) \
             .count()
 
         posts = self.session.query(PostsModel). \
-            filter_by(section_id=section_id)
+            filter_by(section_id=section_id). \
+            order_by(PostsModel.sort.asc()). \
+            limit(self.per_page).offset(self.per_page * int(page))
 
         user_data = UsersHelper.getUser(message.chat.id)
         is_admin = user_data.type == "admin"
-        if count > 0:
-            posts.limit(self.per_page).offset(self.per_page * page)
 
-        keyboard = self.get_keyboard(posts.all(), is_admin)
+        # Keyboard
+        keyboard = self.get_inline_keyboard(posts.all(), is_admin)
+
+        # Pagination
+        max_pages = math.ceil(count / self.per_page) - 1
+        paginator_buttons = []
+        if int(page) > 0:
+            return_page = str(int(page) - 1)
+            callback = {"action": controller_name + ".view_posts", "params": str(section_id) + "|" + return_page}
+            button = types.InlineKeyboardButton(text="Назад", callback_data=json.dumps(callback))
+            paginator_buttons.append(button)
+
+        if count > self.per_page and not (max_pages == int(page)):
+            return_page = str(int(page) + 1)
+            callback = {"action": controller_name + ".view_posts", "params": str(section_id) + "|" + return_page}
+            button = types.InlineKeyboardButton(text="Далее", callback_data=json.dumps(callback))
+            paginator_buttons.append(button)
+
+        if len(paginator_buttons) > 0:
+            keyboard.add(*paginator_buttons)
 
         if is_admin:
-            callback = {"action": controller_name + ".question_add", "params": section_id}
+            callback = {"action": controller_name + ".add", "params": section_id}
             button = types.InlineKeyboardButton(text="Добавить", callback_data=json.dumps(callback))
             keyboard.add(button)
 
@@ -67,7 +108,7 @@ class PostsController(BaseController):
         breadcrumbs = SectionsHelper.get_breadcrumbs(user_data.center_id, section_id)
         self.bot.send_message(message.chat.id, breadcrumbs, reply_markup=keyboard)
 
-    def select(self, message, post_id) -> None:
+    def select(self, message, post_id=False) -> None:
         posts = self.session.query(PostsModel).filter_by(id=post_id).first()
         if not posts:
             return

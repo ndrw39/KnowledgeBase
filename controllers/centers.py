@@ -14,13 +14,15 @@ class CentersController(BaseController):
     def send_centers(self, chat_id) -> None:
         controller_name = self.__class__.__name__
         is_admin = UsersHelper.is_admin(chat_id)
-        centers = self.session.query(CentersModel).all()
+        centers = self.session.query(CentersModel)\
+            .order_by(CentersModel.sort.asc())\
+            .all()
 
         send_text = 'Пока нет ни одного центра'
         if centers:
             send_text = 'Выберите центр из списка:'
 
-        keyboard = self.get_keyboard(centers, is_admin)
+        keyboard = self.get_inline_keyboard(centers, is_admin)
         if is_admin:
             callback = {"action": controller_name + ".add"}
             button = types.InlineKeyboardButton(text="Добавить", callback_data=json.dumps(callback))
@@ -34,9 +36,18 @@ class CentersController(BaseController):
 
         self.session.add(add)
         self.session.commit()
-        self.send_centers(message.chat.id)
+
+        user = UsersHelper.getUser(message.chat.id)
+        if user and user.center_id:
+            Router("SectionsController", "select", [message])
+            return
+
+        Router("CentersController", "send_centers", [message.chat.id])
 
     def delete(self, message, delete_id) -> None:
+        if not UsersHelper.is_admin(message.chat.id):
+            return
+
         if not self.check_relations(delete_id):
             message = "Этот центр связан с юзерами и постами. Его можно только изменить"
             self.bot.send_message(message.chat.id, message)
@@ -44,6 +55,7 @@ class CentersController(BaseController):
 
         self.bot.delete_message(message.chat.id, message.message_id)
         self.session.query(CentersModel).filter_by(id=delete_id).delete()
+        self.session.commit()
         self.send_centers(message.chat.id)
 
     def update_callback(self, message, update_id) -> None:
@@ -52,6 +64,16 @@ class CentersController(BaseController):
         self.session.commit()
         self.send_centers(message.chat.id)
 
+    def change_sort_callback(self, message, update_id) -> None:
+        try:
+            sort = int(message.text)
+            data = {"sort": sort, "updated": datetime.now()}
+            self.session.query(CentersModel).filter_by(id=update_id).update(data)
+            self.session.commit()
+            self.send_centers(message.chat.id)
+        except ValueError:
+            self.bot.send_message(message.chat.id, "Введите цифру")
+
     def check_relations(self, center_id) -> bool:
         users = self.session.query(UsersModel).filter_by(center_id=center_id).first()
         centers = self.session.query(SectionsModel).filter_by(center_id=center_id).first()
@@ -59,4 +81,5 @@ class CentersController(BaseController):
 
     def select(self, message, center_id) -> None:
         UsersHelper.update_center(message.chat.id, center_id)
-        Router("SectionsController", "select")
+        self.bot.send_message(message.chat.id, "Запомнили ваш выбор", reply_markup=self.get_keyboard())
+        Router("SectionsController", "select", [message])

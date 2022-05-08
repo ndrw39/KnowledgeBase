@@ -7,5 +7,6 @@ class CentersModel(declarative_base()):
 
     id = Column(Integer, primary_key=True)
     name = Column('name', String)
+    sort = Column('sort', Integer, default=0)
     created = Column('created', DateTime)
     updated = Column('updated', DateTime)
