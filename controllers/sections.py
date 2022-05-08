@@ -1,23 +1,18 @@
 import json
-import controllers
-import helpers
-import models
-
 from telebot import types
 from datetime import datetime
-
-BaseController = controllers.base.BaseController
-PostsController = controllers.posts.PostsController
-UsersHelper = helpers.users.UsersHelper
-PostsModel = models.posts.PostsModel
-CentersModel = models.centers.CentersModel
-SectionsModel = models.sections.SectionsModel
+from controllers.base import BaseController
+from helpers.users import UsersHelper
+from models.posts import PostsModel
+from models.sections import SectionsModel
+from helpers.sections import SectionsHelper
+from helpers.router import Router
 
 
 class SectionsController(BaseController):
     per_page = 5
 
-    def question_add(self, message, parent_id):
+    def question_add(self, message, parent_id) -> None:
         controller_name = self.__class__.__name__
         keyboard = types.InlineKeyboardMarkup()
 
@@ -35,8 +30,8 @@ class SectionsController(BaseController):
         self.bot.delete_message(message.chat.id, message.message_id)
         self.bot.send_message(message.chat.id, "Выберите что добавить:", reply_markup=keyboard)
 
-    def add_callback(self, message, parent_id):
-        user = UsersHelper.getUser(self.session, message.chat.id)
+    def add_callback(self, message, parent_id) -> None:
+        user = UsersHelper.getUser(message.chat.id)
         if not user.type == "admin" or not user.center_id:
             return
 
@@ -53,15 +48,14 @@ class SectionsController(BaseController):
         self.session.commit()
         self.select(message, parent_id)
 
-    def select(self, message, parent_id=None, page=0):
+    def select(self, message, parent_id=None, page=0) -> None:
         allow_post = self.session.query(PostsModel).filter_by(section_id=parent_id).first()
         if allow_post:
-            posts = PostsController(self.session, self.bot)
-            posts.view_posts(message, parent_id)
+            Router("PostsController", "view_posts", [message, parent_id])
             return
 
         controller_name = self.__class__.__name__
-        user_data = UsersHelper.getUser(self.session, message.chat.id)
+        user_data = UsersHelper.getUser(message.chat.id)
         if not user_data:
             return
 
@@ -73,7 +67,7 @@ class SectionsController(BaseController):
         sections = self.session.query(SectionsModel). \
             filter_by(parent_id=parent_id, center_id=center_id)
 
-        is_admin = UsersHelper.is_admin(self.session, message.chat.id)
+        is_admin = UsersHelper.is_admin(message.chat.id)
         if count > 0:
             sections.limit(self.per_page).offset(self.per_page * page)
 
@@ -85,24 +79,25 @@ class SectionsController(BaseController):
             keyboard.add(button)
 
         if parent_id:
-            section = self.get_parent(parent_id)
+            section = SectionsHelper.get_parent(parent_id)
             if section:
                 callback = {"action": controller_name + ".select", "params": section.parent_id}
                 button = types.InlineKeyboardButton(text='Назад', callback_data=json.dumps(callback))
                 keyboard.add(button)
 
         self.bot.delete_message(message.chat.id, message.message_id)
-        self.bot.send_message(message.chat.id, self.get_breadcrumbs(center_id, parent_id), reply_markup=keyboard)
+        breadcrumbs = SectionsHelper.get_breadcrumbs(center_id, parent_id)
+        self.bot.send_message(message.chat.id, breadcrumbs, reply_markup=keyboard)
 
-    def update_callback(self, message, update_id):
+    def update_callback(self, message, update_id) -> None:
         data = {"name": message.text, "updated": datetime.now()}
         self.session.query(SectionsModel).filter_by(id=update_id).update(data)
         self.session.commit()
-        section = self.get_parent(update_id)
+        section = SectionsHelper.get_parent(update_id)
         if section:
             self.select(message, section.parent_id)
 
-    def delete(self, message, delete_id):
+    def delete(self, message, delete_id) -> None:
         posts = self.session.query(PostsModel).filter_by(section_id=delete_id).first()
         section = self.session.query(SectionsModel).filter_by(parent_id=delete_id).first()
 
@@ -112,35 +107,13 @@ class SectionsController(BaseController):
             return
 
         self.session.query(SectionsModel).filter_by(id=delete_id).delete()
-        section = self.get_parent(delete_id)
+        section = SectionsHelper.get_parent(delete_id)
 
         if section:
             self.select(message, section.parent_id)
 
         self.select(message)
 
-    def check_relations(self, section_id):
+    def check_relations(self, section_id) -> bool:
         section = self.session.query(PostsModel).filter_by(section_id=section_id).first()
         return not section
-
-    def get_parent(self, section_id):
-        return self.session.query(SectionsModel).filter_by(id=section_id).first()
-
-    def get_breadcrumbs(self, center_id, section_id=None):
-        separator = " -> "
-        center = self.session.query(CentersModel).filter_by(id=center_id).first()
-        result = center.name
-
-        if not section_id:
-            return result
-
-        sections = []
-        parent = self.get_parent(section_id)
-        while parent:
-            sections.append(parent.name)
-            parent = self.get_parent(parent.parent_id)
-
-        for section_name in reversed(sections):
-            result += separator + section_name
-
-        return result

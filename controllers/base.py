@@ -1,14 +1,18 @@
 import json
+
+from telebot.types import InlineKeyboardMarkup
+from common.database import DatabaseConnection
+from common.bot import BotConnection
 from abc import ABC, abstractmethod
 from telebot import types
 
 
 class BaseController(ABC):
-    def __init__(self, session, bot):
-        self.session = session
-        self.bot = bot
+    def __init__(self):
+        self.session = DatabaseConnection()
+        self.bot = BotConnection()
 
-    def get_keyboard(self, data, is_admin):
+    def get_keyboard(self, data, is_admin) -> InlineKeyboardMarkup:
         controller_name = self.__class__.__name__
         keyboard = types.InlineKeyboardMarkup()
         if data:
@@ -27,11 +31,11 @@ class BaseController(ABC):
 
         return keyboard
 
-    def add(self, message, item_id):
+    def add(self, message, item_id) -> None:
         self.bot.send_message(message.chat.id, "Выберите название:")
         self.bot.register_next_step_handler(message, self.add_callback, item_id)
 
-    def update(self, message, update_id):
+    def update(self, message, update_id) -> None:
         self.bot.send_message(message.chat.id, "Выберите новое название:")
         self.bot.register_next_step_handler(message, self.update_callback, update_id)
 
