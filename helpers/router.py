@@ -1,23 +1,19 @@
 class Router:
     def __new__(cls, controller: str, method: str, params: list = None):
-        # try:
-        #     controller_method = getattr(cls, controller)
-        #     return controller_method(method, params)
-        # except AttributeError:
-        #     print("Class " + controller + " don't allowed")
-        controller_method = getattr(cls, controller)
-        return controller_method(method, params)
+        try:
+            controller_method = getattr(cls, controller)
+            return controller_method(method, params)
+        except AttributeError:
+            print("Class " + controller + " don't allowed")
 
     @staticmethod
     def call_method(instance, method: str, params: list = None):
         controller_name = instance.__class__.__name__
-        # try:
-        #     call_method = getattr(instance, method)
-        #     return call_method(*params)
-        # except AttributeError:
-        #     print("Method " + method + " don't allowed from controller " + controller_name)
-        call_method = getattr(instance, method)
-        return call_method(*params)
+        try:
+            call_method = getattr(instance, method)
+            return call_method(*params)
+        except AttributeError:
+            print("Method " + method + " don't allowed from controller " + controller_name)
 
     @staticmethod
     def CentersController(method: str, params: list = None):

@@ -7,7 +7,7 @@ class PostsModel(declarative_base()):
 
     id = Column(Integer, primary_key=True)
     name = Column('name', String)
-    text = Column('text', String)
+    json = Column('json', String)
     section_id = Column('section_id', Integer)
     sort = Column('sort', Integer, default=0)
     created = Column('created', DateTime)
