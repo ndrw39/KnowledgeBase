@@ -1,31 +1,31 @@
 class Router:
-    def __new__(cls, controller: str, method: str, params: list = None):
+    def __new__(cls, controller: str, method: str, params: list = None) -> None:
         try:
             controller_method = getattr(cls, controller)
-            return controller_method(method, params)
+            controller_method(method, params)
         except AttributeError:
             print("Class " + controller + " don't allowed")
 
     @staticmethod
-    def call_method(instance, method: str, params: list = None):
+    def call_method(instance, method: str, params: list = None) -> None:
         controller_name = instance.__class__.__name__
         try:
             call_method = getattr(instance, method)
-            return call_method(*params)
+            call_method(*params)
         except AttributeError:
             print("Method " + method + " don't allowed from controller " + controller_name)
 
     @staticmethod
-    def CentersController(method: str, params: list = None):
+    def CentersController(method: str, params: list = None) -> None:
         from controllers.centers import CentersController
-        return Router.call_method(CentersController(), method, params)
+        Router.call_method(CentersController(), method, params)
 
     @staticmethod
-    def SectionsController(method: str, params: list = None):
+    def SectionsController(method: str, params: list = None) -> None:
         from controllers.sections import SectionsController
-        return Router.call_method(SectionsController(), method, params)
+        Router.call_method(SectionsController(), method, params)
 
     @staticmethod
-    def PostsController(method: str, params: list = None):
+    def PostsController(method: str, params: list = None) -> None:
         from controllers.posts import PostsController
-        return Router.call_method(PostsController(), method, params)
+        Router.call_method(PostsController(), method, params)

@@ -11,7 +11,7 @@ def start_command(message):
         user_data = UsersHelper.createUser(message.chat.id, message.chat.first_name, message.chat.last_name)
 
     if not user_data.center_id:
-        Router("CentersController", "send_centers", [message.chat.id])
+        Router("CentersController", "view", [message])
         return
 
     Router("SectionsController", "select", [message])
@@ -38,7 +38,7 @@ def change_type(message):
 @bot().message_handler(content_types=['text'])
 def change_center(message):
     if message.text == "Сменить центр":
-        Router("CentersController", "send_centers", [message.chat.id])
+        Router("CentersController", "view", [message])
     elif message.text == "Новости":
         bot().send_message(message.chat.id, "Скоро будет")
     elif message.text == "На главную":
