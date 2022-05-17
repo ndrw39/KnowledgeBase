@@ -112,7 +112,7 @@ class BaseController(ABC):
 
     def get_keyboard(self) -> ReplyKeyboardMarkup:
         """Getting keyboard buttons"""
-        keyboard = ReplyKeyboardMarkup()
+        keyboard = ReplyKeyboardMarkup(resize_keyboard=True)
         for row in config.BUTTONS:
             keyboard_buttons = []
             for item in row:

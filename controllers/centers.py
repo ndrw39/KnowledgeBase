@@ -16,7 +16,6 @@ class CentersController(BaseController):
     def select(self, message: Message, center_id: int) -> None:
         UsersHelper.update_center(message.chat.id, center_id)
         self.bot.send_message(message.chat.id, translate.REMEMBER, reply_markup=self.get_keyboard())
-
         Router("SectionsController", "select", [message])
 
     # View
@@ -46,14 +45,7 @@ class CentersController(BaseController):
 
         self.session.add(add)
         self.session.commit()
-
-        # If there is data about the center, we show the necessary sections
-        user = UsersHelper.getUser(message.chat.id)
-        if user and user.center_id:
-            Router("SectionsController", "select", [message])
-            return
-
-        Router("CentersController", "view", [message])
+        self.view(message)
 
     # Update
     def update_callback(self, message: Message, update_id: int) -> None:

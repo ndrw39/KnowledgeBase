@@ -89,10 +89,9 @@ class SectionsController(BaseController):
     def add(self, message: Message, parent_id: int = None) -> None:
         controller_name = self.__class__.__name__
         keyboard = types.InlineKeyboardMarkup()
-
         post = self.session.query(SectionsModel).filter_by(parent_id=parent_id).first()
         if post:
-            self.add_callback(message, parent_id)
+            super().add(message, parent_id)
             return
 
         callback = {"action": controller_name + ".add_callback", "params": parent_id}

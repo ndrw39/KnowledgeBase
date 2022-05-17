@@ -1,6 +1,5 @@
 import json
 import math
-
 import config
 import translate
 from telebot import types
@@ -21,24 +20,41 @@ class PostsController(BaseController):
             return
 
         json_prs = json.loads(post.json)
+        if "media" not in json_prs or "text" not in json_prs or "entities" not in json_prs:
+            return
 
-        if "text" in json_prs:
-            entities = None
-            if "entities" in json_prs:
+        if not json_prs["media"]:
+            entities = []
+            for entity in json_prs["entities"]:
+                entities.append(types.MessageEntity.de_json(entity))
+
+            self.bot.send_message(message.chat.id, json_prs["text"], entities=entities)
+            return
+
+        i = 0
+        media_group = []
+        for media in json_prs["media"]:
+            if "type" not in media or "file_id" not in media:
+                continue
+
+            i += 1
+            if i == 1:
                 entities = []
                 for entity in json_prs["entities"]:
                     entities.append(types.MessageEntity.de_json(entity))
 
-            self.bot.send_message(message.chat.id, json_prs["text"], entities=entities)
-        else:
-            media_group = []
-            if "photo" in json_prs:
-                photo = json_prs["photo"]
-                caption = None
-                if "caption" in json_prs:
-                    caption = json_prs["caption"]
-                media_group.append(types.InputMediaPhoto(photo[3]["file_id"], caption=caption))
-                self.bot.send_media_group(message.chat.id, media=media_group)
+                data = {
+                    "type": media["type"],
+                    "media": media["file_id"],
+                    "caption": json_prs["text"],
+                    "caption_entities": entities
+                }
+                media_group.append(types.InputMedia(**data))
+                continue
+
+            media_group.append(types.InputMedia(media["type"], media["file_id"]))
+
+        self.bot.send_media_group(message.chat.id, media=media_group)
 
     # View
     def view(self, message: Message, section_id: int = None, page: int = 0) -> None:
@@ -96,19 +112,32 @@ class PostsController(BaseController):
 
     # Add
     def add_callback(self, message: Message, section_id: int) -> None:
-        name = message.text
-        if not name:
+        if not message.text:
             self.bot.send_message(message.chat.id, translate.TEXT_ONLY)
             return
 
         self.bot.send_message(message.chat.id, translate.ENTER_POST_CONTENT)
-        self.bot.register_next_step_handler(message, self.add_callback_save, name, section_id)
+        self.bot.register_next_step_handler(message, self.add_callback_save, message.text, section_id)
 
     def add_callback_save(self, message: Message, name: str, section_id: int) -> None:
+        if not message.text:
+            self.bot.send_message(message.chat.id, translate.TEXT_ONLY)
+            return
+
+        entities = []
+        if "entities" in message.json:
+            entities = message.json["entities"]
+
+        json_data = {
+            "text": message.text,
+            "entities": entities,
+            "media": []
+        }
+
         data = {
             "name": name,
             "section_id": section_id,
-            "json": json.dumps(message.json),
+            "json": json.dumps(json_data),
             "created": datetime.now(),
             "updated": datetime.now()
         }
@@ -116,17 +145,94 @@ class PostsController(BaseController):
         add = PostsModel(**data)
         self.session.add(add)
         self.session.commit()
-        self.view(message, section_id)
+        self.session.refresh(add)
+        self.add_media(message, add.id)
+
+    def add_media(self, message: Message, post_id: int):
+        controller_name = self.__class__.__name__
+        keyboard = types.InlineKeyboardMarkup()
+
+        post = self.session.query(PostsModel).filter_by(id=post_id).first()
+
+        callback = {"action": controller_name + ".view", "params": post.section_id}
+        button1 = types.InlineKeyboardButton(text=translate.SAVE, callback_data=json.dumps(callback))
+
+        callback = {"action": controller_name + ".add_media_callback", "params": post_id}
+        button2 = types.InlineKeyboardButton(text=translate.ATTACH_MEDIA, callback_data=json.dumps(callback))
+        keyboard.add(button1, button2)
+
+        self.bot.send_message(message.chat.id, translate.SELECT_WHAT_NEXT, reply_markup=keyboard)
+
+    def add_media_callback(self, message: Message, post_id: int):
+        self.bot.send_message(message.chat.id, translate.ENTER_FILE)
+        self.bot.register_next_step_handler(message, self.add_media_save, post_id)
+
+    def add_media_save(self, message: Message, post_id: int):
+        post = self.session.query(PostsModel).filter_by(id=post_id).first()
+        if not post:
+            return
+
+        add_data = json.loads(post.json)
+        json_data = message.json
+
+        # Checking document (document can't be mixed with other media types)
+        if add_data["media"]:
+            for media in add_data["media"]:
+                if ("document" in json_data and media["type"] != "document") \
+                        or ("document" not in json_data and media["type"] == "document"):
+
+                    self.bot.send_message(message.chat.id, translate.DOCUMENT_MIXED)
+                    self.add_media(message, post_id)
+                    return
+
+                if ("voice" in json_data and media["type"] != "audio") \
+                        or ("voice" not in json_data and media["type"] == "audio"):
+
+                    self.bot.send_message(message.chat.id, translate.AUDIO_MIXED)
+                    self.add_media(message, post_id)
+                    return
+
+                if ("audio" in json_data and media["type"] != "audio") \
+                        or ("audio" not in json_data and media["type"] == "audio"):
+
+                    self.bot.send_message(message.chat.id, translate.AUDIO_MIXED)
+                    self.add_media(message, post_id)
+                    return
+
+        if "media" not in add_data:
+            add_data["media"] = []
+
+        if "photo" in json_data:
+            add_data["media"].append({"type": "photo", "file_id": json_data["photo"][3]["file_id"]})
+        elif "video" in json_data:
+            add_data["media"].append({"type": "video", "file_id": json_data["video"]["file_id"]})
+        elif "document" in json_data:
+            add_data["media"].append({"type": "document", "file_id": json_data["document"]["file_id"]})
+        elif "voice" in json_data:
+            add_data["media"].append({"type": "audio", "file_id": json_data["voice"]["file_id"]})
+        elif "audio" in json_data:
+            add_data["media"].append({"type": "audio", "file_id": json_data["audio"]["file_id"]})
+        else:
+            self.bot.send_message(message.id, translate.UNDEFINED_TYPE)
+            return
+
+        data = {
+            "json": json.dumps(add_data),
+            "updated": datetime.now()
+        }
+
+        self.session.query(PostsModel).filter_by(id=post_id).update(data)
+        self.session.commit()
+        self.add_media(message, post_id)
 
     # Update
     def update_callback(self, message: Message, section_id: int) -> None:
-        name = message.text
-        if not name:
+        if not message.text:
             self.bot.send_message(message.chat.id, translate.TEXT_ONLY)
             return
 
         self.bot.send_message(message.chat.id, translate.ENTER_POST_CONTENT)
-        self.bot.register_next_step_handler(message, self.update_callback_save, name, section_id)
+        self.bot.register_next_step_handler(message, self.update_callback_save, message.text, section_id)
 
     def update_callback_save(self, message: Message, name: str, update_id: int) -> None:
         data = {
@@ -167,3 +273,28 @@ class PostsController(BaseController):
             return
 
         self.view(message, post.section_id)
+
+    def get_inline_keyboard(self, data, is_admin: bool) -> types.InlineKeyboardMarkup:
+        """Getting inline keyboard by model data"""
+        controller_name = self.__class__.__name__
+        keyboard = types.InlineKeyboardMarkup()
+        if not data:
+            return keyboard
+
+        for item in data:
+            callback = {"action": controller_name + ".select", "params": item.id}
+            button = types.InlineKeyboardButton(text=item.name, callback_data=json.dumps(callback))
+            keyboard.add(button)
+
+            if is_admin:
+                callback = {"action": controller_name + ".update", "params": item.id}
+                button1 = types.InlineKeyboardButton(text=translate.CHANGE, callback_data=json.dumps(callback))
+                callback = {"action": controller_name + ".add_media", "params": item.id}
+                button2 = types.InlineKeyboardButton(text=translate.ATTACH_MEDIA, callback_data=json.dumps(callback))
+                keyboard.add(button1, button2)
+
+                callback = {"action": controller_name + ".change_sort", "params": item.id}
+                button = types.InlineKeyboardButton(text=translate.CHANGE_SORT, callback_data=json.dumps(callback))
+                keyboard.add(button)
+
+        return keyboard

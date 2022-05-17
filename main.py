@@ -6,6 +6,7 @@ from helpers.router import Router
 
 @bot().message_handler(commands=['start'])
 def start_command(message):
+    bot().clear_step_handler_by_chat_id(chat_id=message.chat.id)
     user_data = UsersHelper.getUser(message.chat.id)
     if not user_data:
         user_data = UsersHelper.createUser(message.chat.id, message.chat.first_name, message.chat.last_name)
@@ -19,6 +20,8 @@ def start_command(message):
 
 @bot().message_handler(commands=['change'])
 def change_type(message):
+    bot().clear_step_handler_by_chat_id(chat_id=message.chat.id)
+
     user_data = UsersHelper.getUser(message.chat.id)
     if not user_data:
         return
@@ -37,6 +40,8 @@ def change_type(message):
 
 @bot().message_handler(content_types=['text'])
 def change_center(message):
+    bot().clear_step_handler_by_chat_id(chat_id=message.chat.id)
+
     if message.text == "Сменить центр":
         Router("CentersController", "view", [message])
     elif message.text == "Новости":
@@ -47,6 +52,8 @@ def change_center(message):
 
 @bot().callback_query_handler(func=lambda callback: True)
 def all_callbacks(callback):
+    bot().clear_step_handler_by_chat_id(chat_id=callback.message.chat.id)
+
     callback_data = json.loads(callback.data)
     if "action" not in callback_data:
         return
