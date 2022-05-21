@@ -1,18 +1,24 @@
 import json
 import sys
+
+import translate
 from common.bot import BotConnection as bot
 from helpers.users import UsersHelper
 from helpers.router import Router
 
 admins = UsersHelper.get_admins()
 for admin in admins:
-    bot().send_message(admin.chat_id, "Bot was started")
+    bot().send_message(admin.chat_id, translate.BOT_STARTED)
 
 
 @bot().message_handler(commands=['restart'])
 def restart_command(message):
+    if not UsersHelper.is_admin(message.chat.id):
+        return
+
     for user in admins:
-        bot().send_message(user.chat_id, "Bot was stopped")
+        bot().send_message(user.chat_id, translate.BOT_STOPPED)
+
     bot().stop_polling()
 
 
