@@ -23,6 +23,7 @@ class PostsController(BaseController):
         json_prs = json.loads(post.json)
         if "media" not in json_prs or "entities" not in json_prs:
             if "text" not in json_prs:
+                self.bot.send_message(message.chat.id, translate.MEDIA_ERROR, disable_notification=True)
                 return
 
             text = json_prs["text"]
