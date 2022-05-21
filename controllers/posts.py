@@ -113,7 +113,7 @@ class PostsController(BaseController):
         if section_id:
             section = SectionsHelper.get_parent(section_id)
             if section:
-                callback = {"action": "SectionsController.select", "params": section.parent_id}
+                callback = {"action": "SectionsController.view", "params": section.parent_id}
                 button = types.InlineKeyboardButton(text=translate.RETURN, callback_data=json.dumps(callback))
                 keyboard.add(button)
 

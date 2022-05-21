@@ -51,13 +51,13 @@ class SectionsController(BaseController):
         paginator_buttons = []
         if int(page) > 0:
             return_page = str(int(page) - 1)
-            callback = {"action": controller_name + ".select", "params": str(section_id) + "|" + return_page}
+            callback = {"action": controller_name + ".view", "params": str(section_id) + "|" + return_page}
             button = types.InlineKeyboardButton(text=translate.RETURN, callback_data=json.dumps(callback))
             paginator_buttons.append(button)
 
         if count > per_page and not (max_pages == int(page)):
             return_page = str(int(page) + 1)
-            callback = {"action": controller_name + ".select", "params": str(section_id) + "|" + return_page}
+            callback = {"action": controller_name + ".view", "params": str(section_id) + "|" + return_page}
             button = types.InlineKeyboardButton(text=translate.NEXT, callback_data=json.dumps(callback))
             paginator_buttons.append(button)
 
@@ -74,7 +74,7 @@ class SectionsController(BaseController):
         if section_id:
             section = SectionsHelper.get_parent(section_id)
             if section:
-                callback = {"action": controller_name + ".select", "params": section.parent_id}
+                callback = {"action": controller_name + ".view", "params": section.parent_id}
                 button = types.InlineKeyboardButton(text=translate.RETURN, callback_data=json.dumps(callback))
                 keyboard.add(button)
 
