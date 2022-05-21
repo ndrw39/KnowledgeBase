@@ -5,6 +5,7 @@ import translate
 from telebot import types
 from datetime import datetime
 from telebot.types import Message
+from telebot.apihelper import ApiTelegramException
 from controllers.base import BaseController
 from helpers.users import UsersHelper
 from helpers.sections import SectionsHelper
@@ -61,8 +62,10 @@ class PostsController(BaseController):
                 continue
 
             media_group.append(types.InputMedia(media["type"], media["file_id"]))
-
-        self.bot.send_media_group(message.chat.id, media=media_group)
+        try:
+            self.bot.send_media_group(message.chat.id, media=media_group)
+        except ApiTelegramException:
+            self.bot.send_message(message.chat.id, translate.MEDIA_ERROR)
 
     # View
     def view(self, message: Message, section_id: int = None, page: int = 0) -> None:
