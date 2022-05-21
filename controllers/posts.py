@@ -189,7 +189,7 @@ class PostsController(BaseController):
         json_data = message.json
 
         # Checking document (document can't be mixed with other media types)
-        if add_data["media"]:
+        if "media" in add_data:
             for media in add_data["media"]:
                 if ("document" in json_data and media["type"] != "document") \
                         or ("document" not in json_data and media["type"] == "document"):
@@ -216,10 +216,11 @@ class PostsController(BaseController):
             add_data["media"] = []
 
         if "entities" not in add_data:
-            add_data["media"] = []
+            add_data["entities"] = []
 
         if "photo" in json_data:
-            add_data["media"].append({"type": "photo", "file_id": json_data["photo"][3]["file_id"]})
+            last_key = len(json_data["photo"]) - 1
+            add_data["media"].append({"type": "photo", "file_id": json_data["photo"][last_key]["file_id"]})
         elif "video" in json_data:
             add_data["media"].append({"type": "video", "file_id": json_data["video"]["file_id"]})
         elif "document" in json_data:
@@ -251,9 +252,22 @@ class PostsController(BaseController):
         self.bot.register_next_step_handler(message, self.update_callback_save, message.text, section_id)
 
     def update_callback_save(self, message: Message, name: str, update_id: int) -> None:
+        post = self.session.query(PostsModel).filter_by(id=update_id).first()
+        if not post:
+            return
+
+        add_data = json.loads(post.json)
+        json_data = message.json
+
+        if "text" in json_data:
+            add_data["text"] = json_data["text"]
+
+        if "entities" in json_data:
+            add_data["entities"] = json_data["entities"]
+
         data = {
             "name": name,
-            "json": json.dumps(message.json),
+            "json": json.dumps(add_data),
             "updated": datetime.now()
         }
 
@@ -305,12 +319,14 @@ class PostsController(BaseController):
             if is_admin:
                 callback = {"action": controller_name + ".update", "params": item.id}
                 button1 = types.InlineKeyboardButton(text=translate.CHANGE, callback_data=json.dumps(callback))
-                callback = {"action": controller_name + ".add_media", "params": item.id}
+                callback = {"action": controller_name + ".add_media_callback", "params": item.id}
                 button2 = types.InlineKeyboardButton(text=translate.ATTACH_MEDIA, callback_data=json.dumps(callback))
                 keyboard.add(button1, button2)
 
                 callback = {"action": controller_name + ".change_sort", "params": item.id}
-                button = types.InlineKeyboardButton(text=translate.CHANGE_SORT, callback_data=json.dumps(callback))
-                keyboard.add(button)
+                button1 = types.InlineKeyboardButton(text=translate.CHANGE_SORT, callback_data=json.dumps(callback))
+                callback = {"action": controller_name + ".delete", "params": item.id}
+                button2 = types.InlineKeyboardButton(text=translate.DELETE, callback_data=json.dumps(callback))
+                keyboard.add(button1, button2)
 
         return keyboard
