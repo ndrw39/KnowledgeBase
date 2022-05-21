@@ -73,6 +73,9 @@ class PostsController(BaseController):
         controller_name = self.__class__.__name__
         per_page = config.PER_PAGE
 
+        if UsersHelper.is_admin(message.chat.id):
+            per_page = config.PER_PAGE_ADMIN
+
         count = self.session.query(PostsModel) \
             .filter_by(section_id=section_id) \
             .count()

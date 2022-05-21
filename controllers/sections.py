@@ -27,6 +27,10 @@ class SectionsController(BaseController):
     def view(self, message: Message, section_id: int = None, page: int = 0) -> None:
         controller_name = self.__class__.__name__
         per_page = config.PER_PAGE
+
+        if UsersHelper.is_admin(message.chat.id):
+            per_page = config.PER_PAGE_ADMIN
+
         user_data = UsersHelper.getUser(message.chat.id)
         if not user_data:
             return
