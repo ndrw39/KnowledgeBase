@@ -45,3 +45,9 @@ class UsersHelper:
         session = DatabaseConnection()
         session.query(UsersModel).filter_by(chat_id=user_id).update({"type": new_type})
         session.commit()
+
+    @staticmethod
+    def get_admins():
+        session = DatabaseConnection()
+        admins = session.query(UsersModel).filter_by(type="admin").all()
+        return admins

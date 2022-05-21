@@ -20,8 +20,16 @@ class PostsController(BaseController):
             return
 
         json_prs = json.loads(post.json)
-        if "media" not in json_prs or "text" not in json_prs or "entities" not in json_prs:
-            return
+        if "media" not in json_prs or "entities" not in json_prs:
+            if "text" not in json_prs:
+                return
+
+            text = json_prs["text"]
+            json_prs = {
+                "text": text,
+                "entities": [],
+                "media": []
+            }
 
         if not json_prs["media"]:
             entities = []
@@ -200,6 +208,9 @@ class PostsController(BaseController):
                     return
 
         if "media" not in add_data:
+            add_data["media"] = []
+
+        if "entities" not in add_data:
             add_data["media"] = []
 
         if "photo" in json_data:

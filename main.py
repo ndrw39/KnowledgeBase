@@ -3,6 +3,10 @@ from common.bot import BotConnection as bot
 from helpers.users import UsersHelper
 from helpers.router import Router
 
+admins = UsersHelper.get_admins()
+for admin in admins:
+    bot().send_message(admin.chat_id, "Bot was started")
+
 
 @bot().message_handler(commands=['start'])
 def start_command(message):
