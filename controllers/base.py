@@ -36,7 +36,7 @@ class BaseController(ABC):
         if not UsersHelper.is_admin(message.chat.id):
             return
 
-        self.bot.send_message(message.chat.id, translate.ENTER_NAME)
+        self.bot.send_message(message.chat.id, translate.ENTER_NAME, disable_notification=True)
         self.bot.register_next_step_handler(message, self.add_callback, item_id)
 
     @abstractmethod
@@ -50,7 +50,7 @@ class BaseController(ABC):
         if not UsersHelper.is_admin(message.chat.id):
             return
 
-        self.bot.send_message(message.chat.id, translate.ENTER_NEW_NAME)
+        self.bot.send_message(message.chat.id, translate.ENTER_NEW_NAME, disable_notification=True)
         self.bot.register_next_step_handler(message, self.update_callback, update_id)
 
     @abstractmethod
@@ -69,7 +69,7 @@ class BaseController(ABC):
         if not UsersHelper.is_admin(message.chat.id):
             return
 
-        self.bot.send_message(message.chat.id, translate.ENTER_SORT)
+        self.bot.send_message(message.chat.id, translate.ENTER_SORT, disable_notification=True)
         self.bot.register_next_step_handler(message, self.change_sort_prepare, item_id)
 
     def change_sort_prepare(self, message: Message, update_id: int) -> None:
@@ -78,7 +78,7 @@ class BaseController(ABC):
             data = {"sort": sort, "updated": datetime.now()}
             self.change_sort_callback(message, data, update_id)
         except ValueError:
-            self.bot.send_message(message.chat.id, translate.ENTER_NUMBER)
+            self.bot.send_message(message.chat.id, translate.ENTER_NUMBER, disable_notification=True)
 
     @abstractmethod
     def change_sort_callback(self, message: Message, update_data: dict, update_id: int) -> None:

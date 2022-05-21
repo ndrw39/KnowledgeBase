@@ -1,4 +1,5 @@
 import json
+import sys
 from common.bot import BotConnection as bot
 from helpers.users import UsersHelper
 from helpers.router import Router
@@ -6,6 +7,13 @@ from helpers.router import Router
 admins = UsersHelper.get_admins()
 for admin in admins:
     bot().send_message(admin.chat_id, "Bot was started")
+
+
+@bot().message_handler(commands=['restart'])
+def restart_command(message):
+    for user in admins:
+        bot().send_message(user.chat_id, "Bot was stopped")
+    bot().stop_polling()
 
 
 @bot().message_handler(commands=['start'])
@@ -49,7 +57,7 @@ def change_center(message):
     if message.text == "Сменить центр":
         Router("CentersController", "view", [message])
     elif message.text == "Новости":
-        bot().send_message(message.chat.id, "Скоро будет")
+        bot().send_message(message.chat.id, "Скоро будет", disable_notification=True)
     elif message.text == "На главную":
         start_command(message)
 

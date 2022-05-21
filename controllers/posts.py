@@ -37,7 +37,7 @@ class PostsController(BaseController):
             for entity in json_prs["entities"]:
                 entities.append(types.MessageEntity.de_json(entity))
 
-            self.bot.send_message(message.chat.id, json_prs["text"], entities=entities)
+            self.bot.send_message(message.chat.id, json_prs["text"], entities=entities, disable_notification=True)
             return
 
         i = 0
@@ -63,9 +63,9 @@ class PostsController(BaseController):
 
             media_group.append(types.InputMedia(media["type"], media["file_id"]))
         try:
-            self.bot.send_media_group(message.chat.id, media=media_group)
+            self.bot.send_media_group(message.chat.id, media=media_group, disable_notification=True)
         except ApiTelegramException:
-            self.bot.send_message(message.chat.id, translate.MEDIA_ERROR)
+            self.bot.send_message(message.chat.id, translate.MEDIA_ERROR, disable_notification=True)
 
     # View
     def view(self, message: Message, section_id: int = None, page: int = 0) -> None:
@@ -119,20 +119,20 @@ class PostsController(BaseController):
 
         self.bot.delete_message(message.chat.id, message.message_id)
         breadcrumbs = SectionsHelper.get_breadcrumbs(user_data.center_id, section_id)
-        self.bot.send_message(message.chat.id, breadcrumbs, reply_markup=keyboard)
+        self.bot.send_message(message.chat.id, breadcrumbs, reply_markup=keyboard, disable_notification=True)
 
     # Add
     def add_callback(self, message: Message, section_id: int) -> None:
         if not message.text:
-            self.bot.send_message(message.chat.id, translate.TEXT_ONLY)
+            self.bot.send_message(message.chat.id, translate.TEXT_ONLY, disable_notification=True)
             return
 
-        self.bot.send_message(message.chat.id, translate.ENTER_POST_CONTENT)
+        self.bot.send_message(message.chat.id, translate.ENTER_POST_CONTENT, disable_notification=True)
         self.bot.register_next_step_handler(message, self.add_callback_save, message.text, section_id)
 
     def add_callback_save(self, message: Message, name: str, section_id: int) -> None:
         if not message.text:
-            self.bot.send_message(message.chat.id, translate.TEXT_ONLY)
+            self.bot.send_message(message.chat.id, translate.TEXT_ONLY, disable_notification=True)
             return
 
         entities = []
@@ -172,10 +172,11 @@ class PostsController(BaseController):
         button2 = types.InlineKeyboardButton(text=translate.ATTACH_MEDIA, callback_data=json.dumps(callback))
         keyboard.add(button1, button2)
 
-        self.bot.send_message(message.chat.id, translate.SELECT_WHAT_NEXT, reply_markup=keyboard)
+        self.bot.send_message(message.chat.id, translate.SELECT_WHAT_NEXT,
+                              reply_markup=keyboard, disable_notification=True)
 
     def add_media_callback(self, message: Message, post_id: int):
-        self.bot.send_message(message.chat.id, translate.ENTER_FILE)
+        self.bot.send_message(message.chat.id, translate.ENTER_FILE, disable_notification=True)
         self.bot.register_next_step_handler(message, self.add_media_save, post_id)
 
     def add_media_save(self, message: Message, post_id: int):
@@ -192,21 +193,21 @@ class PostsController(BaseController):
                 if ("document" in json_data and media["type"] != "document") \
                         or ("document" not in json_data and media["type"] == "document"):
 
-                    self.bot.send_message(message.chat.id, translate.DOCUMENT_MIXED)
+                    self.bot.send_message(message.chat.id, translate.DOCUMENT_MIXED, disable_notification=True)
                     self.add_media(message, post_id)
                     return
 
                 if ("voice" in json_data and media["type"] != "audio") \
                         or ("voice" not in json_data and media["type"] == "audio"):
 
-                    self.bot.send_message(message.chat.id, translate.AUDIO_MIXED)
+                    self.bot.send_message(message.chat.id, translate.AUDIO_MIXED, disable_notification=True)
                     self.add_media(message, post_id)
                     return
 
                 if ("audio" in json_data and media["type"] != "audio") \
                         or ("audio" not in json_data and media["type"] == "audio"):
 
-                    self.bot.send_message(message.chat.id, translate.AUDIO_MIXED)
+                    self.bot.send_message(message.chat.id, translate.AUDIO_MIXED, disable_notification=True)
                     self.add_media(message, post_id)
                     return
 
@@ -227,7 +228,7 @@ class PostsController(BaseController):
         elif "audio" in json_data:
             add_data["media"].append({"type": "audio", "file_id": json_data["audio"]["file_id"]})
         else:
-            self.bot.send_message(message.id, translate.UNDEFINED_TYPE)
+            self.bot.send_message(message.id, translate.UNDEFINED_TYPE, disable_notification=True)
             return
 
         data = {
@@ -242,10 +243,10 @@ class PostsController(BaseController):
     # Update
     def update_callback(self, message: Message, section_id: int) -> None:
         if not message.text:
-            self.bot.send_message(message.chat.id, translate.TEXT_ONLY)
+            self.bot.send_message(message.chat.id, translate.TEXT_ONLY, disable_notification=True)
             return
 
-        self.bot.send_message(message.chat.id, translate.ENTER_POST_CONTENT)
+        self.bot.send_message(message.chat.id, translate.ENTER_POST_CONTENT, disable_notification=True)
         self.bot.register_next_step_handler(message, self.update_callback_save, message.text, section_id)
 
     def update_callback_save(self, message: Message, name: str, update_id: int) -> None:

@@ -15,7 +15,7 @@ class CentersController(BaseController):
     # Select
     def select(self, message: Message, center_id: int) -> None:
         UsersHelper.update_center(message.chat.id, center_id)
-        self.bot.send_message(message.chat.id, translate.REMEMBER, reply_markup=self.get_keyboard())
+        self.bot.send_message(message.chat.id, translate.REMEMBER, reply_markup=self.get_keyboard(), disable_notification=True)
         Router("SectionsController", "select", [message])
 
     # View
@@ -36,7 +36,7 @@ class CentersController(BaseController):
             button = InlineKeyboardButton(text=translate.ADD, callback_data=json.dumps(callback))
             keyboard.add(button)
 
-        self.bot.send_message(message.chat.id, send_text, reply_markup=keyboard)
+        self.bot.send_message(message.chat.id, send_text, reply_markup=keyboard, disable_notification=True)
 
     # Add
     def add_callback(self, message: Message, center_id: int) -> None:

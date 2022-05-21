@@ -80,10 +80,11 @@ class SectionsController(BaseController):
 
         self.bot.delete_message(message.chat.id, message.message_id)
         breadcrumbs = SectionsHelper.get_breadcrumbs(center_id, section_id)
-        self.bot.send_message(message.chat.id, breadcrumbs, reply_markup=keyboard)
+        self.bot.send_message(message.chat.id, breadcrumbs, reply_markup=keyboard, disable_notification=True)
 
         if count == 0 and not section_id:
-            self.bot.send_message(message.chat.id, translate.EMPTY, reply_markup=self.get_keyboard())
+            self.bot.send_message(message.chat.id, translate.EMPTY,
+                                  reply_markup=self.get_keyboard(), disable_notification=True)
 
     # Add
     def add(self, message: Message, parent_id: int = None) -> None:
@@ -101,7 +102,8 @@ class SectionsController(BaseController):
         keyboard.add(button1, button2)
 
         self.bot.delete_message(message.chat.id, message.message_id)
-        self.bot.send_message(message.chat.id, translate.SELECT_ADD_TYPE, reply_markup=keyboard)
+        self.bot.send_message(message.chat.id, translate.SELECT_ADD_TYPE,
+                              reply_markup=keyboard, disable_notification=True)
 
     def add_callback(self, message: Message, parent_id: int = None) -> None:
         user = UsersHelper.getUser(message.chat.id)
@@ -140,7 +142,7 @@ class SectionsController(BaseController):
 
         if posts or section:
             text = translate.RELATIONS_ERROR
-            self.bot.send_message(message.chat.id, text)
+            self.bot.send_message(message.chat.id, text, disable_notification=True)
             return
 
         self.session.query(SectionsModel).filter_by(id=delete_id).delete()
