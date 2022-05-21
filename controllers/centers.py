@@ -61,7 +61,9 @@ class CentersController(BaseController):
 
         users = self.session.query(UsersModel).filter_by(center_id=delete_id).first()
         section = self.session.query(SectionsModel).filter_by(center_id=delete_id).first()
-        if not users and not section:
+        if users or section:
+            text = translate.RELATIONS_ERROR
+            self.bot.send_message(message.chat.id, text, disable_notification=True)
             return
 
         self.bot.delete_message(message.chat.id, message.message_id)
